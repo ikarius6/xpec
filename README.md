@@ -8,6 +8,10 @@ A small tool to collect and display your PC specs in a clean HTML page and an op
 - Storage with SSD/HDD detection (uses MSFT_PhysicalDisk when available; NVMe heuristic fallback)
 - Configurable title, background image, colors, and fonts via [xpec.config.json](xpec.config.json)
 
+## Precompiled version
+
+You can find a precompiled version in [demo](https://hackers.army/xpec/xpec.rar).
+
 ---
 
 ## Requirements
