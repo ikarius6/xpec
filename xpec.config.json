@@ -1,0 +1,22 @@
+{
+    "title": "Xpec by Mr.Jack",
+
+    "image_size": [1200, 675],
+    "background_image": "bg.jpg",
+    "background_fit": "cover",
+    "background_overlay": { "color": [0, 0, 0], "opacity": 0.35 },
+  
+    "background_color": [26, 26, 26],
+    "accent_color": "#00FF9D",
+    "sub_color": "#00CCFF",
+    "text_color": [240, 240, 240],
+    "dim_color": [160, 160, 160],
+  
+    "font_paths": {
+      "title": "jetbrains.ttf",
+      "h2": "jetbrains.ttf",
+      "body": "jetbrains.ttf",
+      "small": "jetbrains.ttf"
+    },
+    "font_sizes": { "title": 56, "h2": 36, "body": 28, "small": 24 }
+  }

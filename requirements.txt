@@ -1,0 +1,5 @@
+psutil
+Pillow
+comtypes
+pynvml
+wmi

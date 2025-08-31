@@ -1,0 +1,15 @@
+# Virtual environment
+venv/
+venv/**
+wvenv/
+wvenv/**
+
+# Distribution / packaging
+dist/
+dist/**
+build/
+build/**
+
+pc_specs.html
+
+*.spec
