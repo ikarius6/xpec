@@ -241,6 +241,85 @@ def get_ram_info():
         except Exception:
             pass
 
+    # Post-process for simpler vendor/model names and CAS Latency
+    for m in ram_info["Modules"]:
+        part = m.get("Part Number", "N/A").strip()
+        manu = m.get("Manufacturer", "N/A").strip()
+        
+        # Heuristics for Manufacturer & Model Family from Part Number
+        inferred_manu = None
+        inferred_model = None
+        cl_val = None
+
+        if part and part != "N/A":
+            u_part = part.upper()
+            
+            # --- Manufacturer / Model Heuristics ---
+            # CORSAIR
+            if u_part.startswith("CMP"):
+                inferred_manu = "Corsair"
+                inferred_model = "Dominator Titanium"
+            elif u_part.startswith("CMT"):
+                inferred_manu = "Corsair"
+                inferred_model = "Dominator Platinum"
+            elif u_part.startswith("CMK"):
+                inferred_manu = "Corsair"
+                inferred_model = "Vengeance LPX"
+            elif u_part.startswith("CMH"):
+                inferred_manu = "Corsair"
+                inferred_model = "Vengeance RGB"
+            elif u_part.startswith("CMW"):
+                inferred_manu = "Corsair"
+                inferred_model = "Vengeance RGB Pro"
+            elif u_part.startswith("CM"):
+                inferred_manu = "Corsair"
+                
+            # G.SKILL
+            elif u_part.startswith("F5") or u_part.startswith("F4"):
+                inferred_manu = "G.Skill"
+                if "TZ" in u_part: inferred_model = "Trident Z"
+                elif "RJ" in u_part: inferred_model = "Ripjaws"
+                
+            # KINGSTON
+            elif u_part.startswith("KF"):
+                inferred_manu = "Kingston"
+                inferred_model = "Fury"
+            elif u_part.startswith("HX"):
+                inferred_manu = "HyperX"
+                
+            # CRUCIAL
+            elif u_part.startswith("CT") or "CRUCIAL" in u_part:
+                inferred_manu = "Crucial"
+                
+            # --- CAS Latency Heuristics ---
+            # Look for C30, CL30, C32, etc. usually near end or after hyphen
+            # Regex: C followed by 2 digits, ensure it's not part of a larger number like C12345
+            # common patterns: ...C30..., ...CL30...
+            match_cl = re.search(r"(?:C|CL)(\d{2})(?:[^0-9]|$)", u_part)
+            if not match_cl:
+                # Fallback: check if the string STARTS with C/CL + digits (rare but safe)
+                match_cl = re.match(r"^(?:C|CL)(\d{2})(?:[^0-9]|$)", u_part)
+            
+            if match_cl:
+                try:
+                    val = int(match_cl.group(1))
+                    if 10 <= val <= 50: # Sane DDR4/DDR5 CL range
+                        cl_val = f"CL{val}"
+                except:
+                    pass
+
+        # Apply inferences if original manu is weak
+        if manu in {"N/A", "Unknown", "0000", "Undefined"} and inferred_manu:
+            m["Manufacturer"] = inferred_manu
+        
+        # Store extras
+        if inferred_manu:
+            m["_InferredManu"] = inferred_manu
+        if inferred_model:
+            m["_InferredModel"] = inferred_model
+        if cl_val:
+            m["_CL"] = cl_val
+
     return ram_info
 
 def get_gpu_info():
@@ -807,14 +886,44 @@ def _summarize_ram(ram_info: dict) -> str:
     if count and sizes and all(x > 0 for x in sizes):
         if len(set(sizes)) == 1:
             per_size = sizes[0]
-    parts = [f"Total: {total}"]
+    parts = [f"{total}"]
     if count:
         if per_size:
             parts.append(f"({count}x{per_size:.0f} GB)")
         else:
             parts.append(f"({count} modules)")
+    
+    # 3. Add Speed and Latency
+    # Check consistency
+    cls = [m.get("_CL") for m in modules if m.get("_CL")]
+    uniq_cl = cls[0] if cls and len(set(cls)) == 1 else None
+    
+    speed_part = ""
     if uniq_speed:
-        parts.append(f"@ {uniq_speed} MHz")
+        speed_part = f"@ {uniq_speed} MHz"
+        if uniq_cl:
+            speed_part += f" {uniq_cl}"
+    if speed_part:
+        parts.append(speed_part)
+
+    # 4. Add Manufacturer / Model if consistent
+    # We want: " | Corsair Dominator Titanium"
+    manus = [m.get("_InferredManu") or m.get("Manufacturer") for m in modules]
+    models = [m.get("_InferredModel") for m in modules]
+    
+    # Clean up N/A
+    manus = [x for x in manus if x and x not in {"N/A", "Unknown", "0000"}]
+    models = [x for x in models if x]
+    
+    final_manu = manus[0] if manus and len(set(manus)) == 1 else None
+    final_model = models[0] if models and len(set(models)) == 1 else None
+    
+    if final_manu:
+        suffix = final_manu
+        if final_model:
+            suffix += f" {final_model}"
+        parts.append(f"| {suffix}")
+
     return " ".join(parts)
 
 def _choose_primary_gpu(gpu_info: list) -> dict:
